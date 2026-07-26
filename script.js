@@ -36,7 +36,6 @@ tg.onEvent('themeChanged', applyTheme);
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
 const charCount = document.getElementById('charCount');
-const charProgress = document.getElementById('charProgress');
 const fileInput = document.getElementById('fileInput');
 const attachmentBtn = document.getElementById('attachmentBtn');
 const filePreview = document.getElementById('filePreview');
@@ -47,12 +46,8 @@ const rulesBtn = document.getElementById('rulesBtn');
 const modalOverlay = document.getElementById('modalOverlay');
 const modalClose = document.getElementById('modalClose');
 const modalBody = document.getElementById('modalBody');
-const themeToggle = document.getElementById('themeToggle');
-const messageCount = document.getElementById('messageCount');
 
 let attachedFile = null;
-let lastSendTime = 0;
-const SEND_COOLDOWN = 30000; // 30 seconds cooldown
 
 // Function to validate form
 function validateForm() {
@@ -61,22 +56,10 @@ function validateForm() {
     sendBtn.disabled = !(hasText && hasAcceptedTerms);
 }
 
-// Character counter and progress bar
+// Character counter
 messageInput.addEventListener('input', function() {
     const currentLength = this.value.length;
-    const maxLength = 500;
-    const percentage = (currentLength / maxLength) * 100;
-    
     charCount.textContent = currentLength;
-    charProgress.style.width = percentage + '%';
-    
-    // Update progress bar color based on usage
-    charProgress.classList.remove('warning', 'danger');
-    if (percentage >= 90) {
-        charProgress.classList.add('danger');
-    } else if (percentage >= 70) {
-        charProgress.classList.add('warning');
-    }
     
     // Add warning class when approaching limit
     if (currentLength >= 450) {
@@ -88,50 +71,6 @@ messageInput.addEventListener('input', function() {
     // Validate form
     validateForm();
 });
-
-// Load message count from localStorage
-function loadMessageCount() {
-    const count = localStorage.getItem('lyubotin_message_count') || '0';
-    messageCount.textContent = count;
-}
-
-// Increment message count
-function incrementMessageCount() {
-    const currentCount = parseInt(localStorage.getItem('lyubotin_message_count') || '0');
-    const newCount = currentCount + 1;
-    localStorage.setItem('lyubotin_message_count', newCount.toString());
-    messageCount.textContent = newCount;
-    
-    // Animate the counter
-    messageCount.style.transform = 'scale(1.3)';
-    setTimeout(() => {
-        messageCount.style.transform = 'scale(1)';
-    }, 200);
-}
-
-// Theme toggle functionality
-themeToggle.addEventListener('click', function() {
-    document.body.classList.toggle('light-theme');
-    const isLight = document.body.classList.contains('light-theme');
-    localStorage.setItem('lyubotin_theme', isLight ? 'light' : 'dark');
-    
-    // Haptic feedback
-    if (tg.HapticFeedback) {
-        tg.HapticFeedback.impactOccurred('light');
-    }
-});
-
-// Load saved theme
-function loadTheme() {
-    const savedTheme = localStorage.getItem('lyubotin_theme');
-    if (savedTheme === 'light') {
-        document.body.classList.add('light-theme');
-    }
-}
-
-// Initialize
-loadMessageCount();
-loadTheme();
 
 // Terms checkbox change
 termsCheckbox.addEventListener('change', function() {
@@ -160,24 +99,10 @@ function showFilePreview(file) {
         let mediaElement;
         if (file.type.startsWith('image/')) {
             mediaElement = document.createElement('img');
-            // Use canvas to maintain full quality
-            const img = new Image();
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.naturalWidth;
-                canvas.height = img.naturalHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                mediaElement.src = canvas.toDataURL(file.type, 1.0); // Maximum quality
-            };
-            img.src = e.target.result;
+            mediaElement.src = e.target.result;
         } else if (file.type.startsWith('video/')) {
             mediaElement = document.createElement('video');
             mediaElement.controls = true;
-            mediaElement.src = e.target.result;
-        }
-        
-        if (!file.type.startsWith('image/')) {
             mediaElement.src = e.target.result;
         }
         
@@ -221,14 +146,6 @@ sendBtn.addEventListener('click', function() {
         return;
     }
     
-    // Rate limiting check
-    const currentTime = Date.now();
-    if (currentTime - lastSendTime < SEND_COOLDOWN) {
-        const remainingTime = Math.ceil((SEND_COOLDOWN - (currentTime - lastSendTime)) / 1000);
-        alert(`Пожалуйста, подождите ${remainingTime} секунд перед отправкой следующего сообщения.`);
-        return;
-    }
-    
     // Prepare data对象
     const data = {
         text: messageText
@@ -255,28 +172,146 @@ sendBtn.addEventListener('click', function() {
 });
 
 function sendData(data) {
-    lastSendTime = Date.now();
-    incrementMessageCount();
+    // Show success animation
     successOverlay.classList.add('active');
-
-    if (attachedFile) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            data.file = {
-                name: attachedFile.name,
-                type: attachedFile.type,
-                data: e.target.result
-            };
-            tg.sendData(JSON.stringify(data));
-        };
-        reader.readAsDataURL(attachedFile);
-    } else {
+    
+    // Send data to Telegram bot
+    try {
         tg.sendData(JSON.stringify(data));
+        console.log('Data sent successfully');
+    } catch (error) {
+        console.error('Error sending data:', error);
     }
-
-    setTimeout(() => {
-        if (typeof tg !== 'undefined' && tg.close) {
+    
+    // Close the app after animation with multiple fallback attempts
+    let closeAttempts = 0;
+    const maxAttempts = 3;
+    
+    const attemptClose = () => {
+        closeAttempts++;
+        try {
             tg.close();
+            console.log(`Close attempt ${closeAttempts}`);
+        } catch (error) {
+            console.error(`Close attempt ${closeAttempts} failed:`, error);
+            if (closeAttempts < maxAttempts) {
+                setTimeout(attemptClose, 500);
+            }
         }
-    }, 2000);
+    };
+    
+    // First attempt after animation completes
+    setTimeout(attemptClose, 2000);
 }
+
+// Handle back button (if available)
+if (tg.BackButton) {
+    tg.BackButton.show();
+    tg.BackButton.onClick(() => {
+        tg.close();
+    });
+}
+
+// Enable haptic feedback on button press
+sendBtn.addEventListener('mousedown', function() {
+    if (tg.HapticFeedback) {
+        tg.HapticFeedback.impactOccurred('medium');
+    }
+});
+
+attachmentBtn.addEventListener('mousedown', function() {
+    if (tg.HapticFeedback) {
+        tg.HapticFeedback.impactOccurred('light');
+    }
+});
+
+// Handle viewport changes
+tg.onEvent('viewportChanged', () => {
+    // Adjust layout if needed when viewport changes
+    if (!tg.isExpanded) {
+        tg.expand();
+    }
+});
+
+// Modal functions
+function showModal(content) {
+    modalBody.innerHTML = content;
+    modalOverlay.classList.add('active');
+}
+
+function closeModal() {
+    modalOverlay.classList.remove('active');
+}
+
+// About button click
+aboutBtn.addEventListener('click', function() {
+    const aboutContent = `
+        <h2>💌 О проекте люботин</h2>
+        <p><strong>люботин</strong> — это платформа для отправки анонимных сообщений, где ты можешь выразить свои мысли без страха быть узнанным.</p>
+        
+        <h3>🎯 Наша миссия</h3>
+        <p>Создать безопасное пространство для честного общения, где каждый может сказать то, что боится сказать в лицо.</p>
+        
+        <h3>✨ Возможности</h3>
+        <ul>
+            <li>📝 Отправка текстовых сообщений</li>
+            <li>📷 Прикрепление фото и видео</li>
+            <li>🔒 Полная анонимность</li>
+            <li>✅ Модерация контента</li>
+        </ul>
+        
+        <h3>📞 Поддержка</h3>
+        <p>Если у вас есть вопросы или проблемы, напишите нам: <a href="https://t.me/wecstor" style="color: var(--tg-theme-button-color);">@wecstor</a></p>
+    `;
+    showModal(aboutContent);
+});
+
+// Rules button click
+rulesBtn.addEventListener('click', function() {
+    const rulesContent = `
+        <h2>📋 Правила платформы</h2>
+        
+        <h3>⚠️ Важно знать</h3>
+        <ul>
+            <li>Публикуется только контент, одобренный администрацией</li>
+            <li>Администрация не несет ответственности за отправленный контент</li>
+            <li>Пожалуйста, отправляйте только соответствующий контент</li>
+        </ul>
+        
+        <h3>🚫 Запрещено</h3>
+        <ul>
+            <li>Спам и реклама</li>
+            <li>Оскорбления и угрозы</li>
+            <li>Непристойный контент</li>
+            <li>Раскрытие личной информации</li>
+            <li>Мошенничество</li>
+        </ul>
+        
+        <h3>✅ Рекомендуется</h3>
+        <ul>
+            <li>Быть вежливым и уважительным</li>
+            <li>Выражать мысли конструктивно</li>
+            <li>Соблюдать правила этикета</li>
+        </ul>
+        
+        <p><em>Нарушение правил может привести к блокировке аккаунта.</em></p>
+    `;
+    showModal(rulesContent);
+});
+
+// Close modal button
+modalClose.addEventListener('click', closeModal);
+
+// Close modal on overlay click
+modalOverlay.addEventListener('click', function(e) {
+    if (e.target === modalOverlay) {
+        closeModal();
+    }
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && modalOverlay.classList.contains('active')) {
+        closeModal();
+    }
+});
