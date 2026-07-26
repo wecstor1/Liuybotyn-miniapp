@@ -36,13 +36,23 @@ tg.onEvent('themeChanged', applyTheme);
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
 const charCount = document.getElementById('charCount');
+const charProgress = document.getElementById('charProgress');
 const fileInput = document.getElementById('fileInput');
 const attachmentBtn = document.getElementById('attachmentBtn');
 const filePreview = document.getElementById('filePreview');
 const successOverlay = document.getElementById('successOverlay');
 const termsCheckbox = document.getElementById('termsCheckbox');
+const aboutBtn = document.getElementById('aboutBtn');
+const rulesBtn = document.getElementById('rulesBtn');
+const modalOverlay = document.getElementById('modalOverlay');
+const modalClose = document.getElementById('modalClose');
+const modalBody = document.getElementById('modalBody');
+const themeToggle = document.getElementById('themeToggle');
+const messageCount = document.getElementById('messageCount');
 
 let attachedFile = null;
+let lastSendTime = 0;
+const SEND_COOLDOWN = 30000; // 30 seconds cooldown
 
 // Function to validate form
 function validateForm() {
@@ -51,10 +61,22 @@ function validateForm() {
     sendBtn.disabled = !(hasText && hasAcceptedTerms);
 }
 
-// Character counter
+// Character counter and progress bar
 messageInput.addEventListener('input', function() {
     const currentLength = this.value.length;
+    const maxLength = 500;
+    const percentage = (currentLength / maxLength) * 100;
+    
     charCount.textContent = currentLength;
+    charProgress.style.width = percentage + '%';
+    
+    // Update progress bar color based on usage
+    charProgress.classList.remove('warning', 'danger');
+    if (percentage >= 90) {
+        charProgress.classList.add('danger');
+    } else if (percentage >= 70) {
+        charProgress.classList.add('warning');
+    }
     
     // Add warning class when approaching limit
     if (currentLength >= 450) {
@@ -66,6 +88,50 @@ messageInput.addEventListener('input', function() {
     // Validate form
     validateForm();
 });
+
+// Load message count from localStorage
+function loadMessageCount() {
+    const count = localStorage.getItem('lyubotin_message_count') || '0';
+    messageCount.textContent = count;
+}
+
+// Increment message count
+function incrementMessageCount() {
+    const currentCount = parseInt(localStorage.getItem('lyubotin_message_count') || '0');
+    const newCount = currentCount + 1;
+    localStorage.setItem('lyubotin_message_count', newCount.toString());
+    messageCount.textContent = newCount;
+    
+    // Animate the counter
+    messageCount.style.transform = 'scale(1.3)';
+    setTimeout(() => {
+        messageCount.style.transform = 'scale(1)';
+    }, 200);
+}
+
+// Theme toggle functionality
+themeToggle.addEventListener('click', function() {
+    document.body.classList.toggle('light-theme');
+    const isLight = document.body.classList.contains('light-theme');
+    localStorage.setItem('lyubotin_theme', isLight ? 'light' : 'dark');
+    
+    // Haptic feedback
+    if (tg.HapticFeedback) {
+        tg.HapticFeedback.impactOccurred('light');
+    }
+});
+
+// Load saved theme
+function loadTheme() {
+    const savedTheme = localStorage.getItem('lyubotin_theme');
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+    }
+}
+
+// Initialize
+loadMessageCount();
+loadTheme();
 
 // Terms checkbox change
 termsCheckbox.addEventListener('change', function() {
@@ -94,12 +160,26 @@ function showFilePreview(file) {
         let mediaElement;
         if (file.type.startsWith('image/')) {
             mediaElement = document.createElement('img');
+            // Use canvas to maintain full quality
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                mediaElement.src = canvas.toDataURL(file.type, 1.0); // Maximum quality
+            };
+            img.src = e.target.result;
         } else if (file.type.startsWith('video/')) {
             mediaElement = document.createElement('video');
             mediaElement.controls = true;
+            mediaElement.src = e.target.result;
         }
         
-        mediaElement.src = e.target.result;
+        if (!file.type.startsWith('image/')) {
+            mediaElement.src = e.target.result;
+        }
         
         const removeBtn = document.createElement('button');
         removeBtn.className = 'remove-file';
@@ -141,6 +221,14 @@ sendBtn.addEventListener('click', function() {
         return;
     }
     
+    // Rate limiting check
+    const currentTime = Date.now();
+    if (currentTime - lastSendTime < SEND_COOLDOWN) {
+        const remainingTime = Math.ceil((SEND_COOLDOWN - (currentTime - lastSendTime)) / 1000);
+        alert(`Пожалуйста, подождите ${remainingTime} секунд перед отправкой следующего сообщения.`);
+        return;
+    }
+    
     // Prepare data对象
     const data = {
         text: messageText
@@ -167,15 +255,35 @@ sendBtn.addEventListener('click', function() {
 });
 
 function sendData(data) {
+    // Update last send time and increment counter
+    lastSendTime = Date.now();
+    incrementMessageCount();
+    
     // Show success animation
     successOverlay.classList.add('active');
     
+    // Log data being sent
+    console.log('Preparing to send data:', data);
+    
     // Send data to Telegram bot
     try {
-        tg.sendData(JSON.stringify(data));
-        console.log('Data sent successfully');
+        const jsonData = JSON.stringify(data);
+        console.log('Sending JSON data:', jsonData);
+        
+        // Check if Telegram WebApp is available
+        if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
+            window.Telegram.WebApp.sendData(jsonData);
+            console.log('Data sent successfully via Telegram.WebApp.sendData');
+        } else if (typeof tg !== 'undefined' && tg.sendData) {
+            tg.sendData(jsonData);
+            console.log('Data sent successfully via tg.sendData');
+        } else {
+            console.error('Telegram WebApp is not available');
+            alert('Ошибка: Telegram WebApp не доступен');
+        }
     } catch (error) {
         console.error('Error sending data:', error);
+        alert('Ошибка при отправке данных: ' + error.message);
     }
     
     // Close the app after animation with multiple fallback attempts
@@ -185,8 +293,13 @@ function sendData(data) {
     const attemptClose = () => {
         closeAttempts++;
         try {
-            tg.close();
-            console.log(`Close attempt ${closeAttempts}`);
+            if (typeof tg !== 'undefined' && tg.close) {
+                tg.close();
+                console.log(`Close attempt ${closeAttempts}`);
+            } else if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
+                window.Telegram.WebApp.close();
+                console.log(`Close attempt ${closeAttempts} via window.Telegram.WebApp.close`);
+            }
         } catch (error) {
             console.error(`Close attempt ${closeAttempts} failed:`, error);
             if (closeAttempts < maxAttempts) {
@@ -225,5 +338,88 @@ tg.onEvent('viewportChanged', () => {
     // Adjust layout if needed when viewport changes
     if (!tg.isExpanded) {
         tg.expand();
+    }
+});
+
+// Modal functions
+function showModal(content) {
+    modalBody.innerHTML = content;
+    modalOverlay.classList.add('active');
+}
+
+function closeModal() {
+    modalOverlay.classList.remove('active');
+}
+
+// About button click
+aboutBtn.addEventListener('click', function() {
+    const aboutContent = `
+        <h2>💌 О проекте люботин</h2>
+        <p><strong>люботин</strong> — это платформа для отправки анонимных сообщений, где ты можешь выразить свои мысли без страха быть узнанным.</p>
+        
+        <h3>🎯 Наша миссия</h3>
+        <p>Создать безопасное пространство для честного общения, где каждый может сказать то, что боится сказать в лицо.</p>
+        
+        <h3>✨ Возможности</h3>
+        <ul>
+            <li>📝 Отправка текстовых сообщений</li>
+            <li>📷 Прикрепление фото и видео</li>
+            <li>🔒 Полная анонимность</li>
+            <li>✅ Модерация контента</li>
+        </ul>
+        
+        <h3>📞 Поддержка</h3>
+        <p>Если у вас есть вопросы или проблемы, напишите нам: <a href="https://t.me/wecstor" style="color: var(--tg-theme-button-color);">@wecstor</a></p>
+    `;
+    showModal(aboutContent);
+});
+
+// Rules button click
+rulesBtn.addEventListener('click', function() {
+    const rulesContent = `
+        <h2>📋 Правила платформы</h2>
+        
+        <h3>⚠️ Важно знать</h3>
+        <ul>
+            <li>Публикуется только контент, одобренный администрацией</li>
+            <li>Администрация не несет ответственности за отправленный контент</li>
+            <li>Пожалуйста, отправляйте только соответствующий контент</li>
+        </ul>
+        
+        <h3>🚫 Запрещено</h3>
+        <ul>
+            <li>Спам и реклама</li>
+            <li>Оскорбления и угрозы</li>
+            <li>Непристойный контент</li>
+            <li>Раскрытие личной информации</li>
+            <li>Мошенничество</li>
+        </ul>
+        
+        <h3>✅ Рекомендуется</h3>
+        <ul>
+            <li>Быть вежливым и уважительным</li>
+            <li>Выражать мысли конструктивно</li>
+            <li>Соблюдать правила этикета</li>
+        </ul>
+        
+        <p><em>Нарушение правил может привести к блокировке аккаунта.</em></p>
+    `;
+    showModal(rulesContent);
+});
+
+// Close modal button
+modalClose.addEventListener('click', closeModal);
+
+// Close modal on overlay click
+modalOverlay.addEventListener('click', function(e) {
+    if (e.target === modalOverlay) {
+        closeModal();
+    }
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && modalOverlay.classList.contains('active')) {
+        closeModal();
     }
 });

@@ -2,7 +2,7 @@ import asyncio
 import json
 import base64
 import logging
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.types import WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -10,7 +10,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 # Конфигурация
 BOT_TOKEN = "8283504947:AAEl7JGmgtCx5q4xihUXFda7Luie3Nbcu1A"  # Токен бота
 MY_CHAT_ID = 8579101084  # ID администратора
-MINI_APP_URL = "https://your-app-url.com"  # Замените на URL вашего Mini App
+MINI_APP_URL = "https://wecstor1.github.io/Liuybotyn-miniapp/"  # URL Mini App
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -40,7 +40,7 @@ async def cmd_start(message: types.Message):
     )
 
 
-@dp.message(F.content_type == "web_app_data")
+@dp.message(F.web_app_data)
 async def handle_web_app_data(message: types.Message):
     """Обработчик данных из Mini App"""
     try:
