@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>люботин</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-icon">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="18" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 20C12 16.6863 14.6863 14 18 14H22C25.3137 14 28 16.6863 28 20C28 23.3137 25.3137 26 22 26H18C14.6863 26 12 23.3137 12 20Z" stroke="currentColor" stroke-width="2"/>
+                    <circle cx="18" cy="20" r="2" fill="currentColor"/>
+                    <circle cx="22" cy="20" r="2" fill="currentColor"/>
+                </svg>
+            </div>
+            <h1 class="header-title">люботин</h1>
+        </header>
+
+        <main class="main-content">
+            <div class="message-form">
+                <div class="attachment-area" id="attachmentArea">
+                    <input type="file" id="fileInput" accept="image/*,video/*" hidden>
+                    <button class="attachment-btn" id="attachmentBtn" type="button">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <span>Прикрепить фото/видео</span>
+                    </button>
+                    <div class="file-preview" id="filePreview"></div>
+                </div>
+
+                <div class="textarea-wrapper">
+                    <textarea 
+                        id="messageInput" 
+                        class="message-input" 
+                        placeholder="Напиши то, что боишься сказать в лицо..."
+                        maxlength="500"
+                        rows="5"
+                    ></textarea>
+                    <div class="char-counter">
+                        <span id="charCount">0</span>/500
+                    </div>
+                </div>
+
+                <div class="terms-section">
+                    <div class="terms-text">
+                        ⚠️ <strong>Важно:</strong> Публикуется только контент, одобренный администрацией. 
+                        Администрация не несет ответственности за отправленный вами контент.
+                    </div>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="termsCheckbox" class="terms-checkbox">
+                        <span class="checkbox-custom"></span>
+                        <span class="checkbox-text">Я согласен с правилами и принимаю условия</span>
+                    </label>
+                </div>
+
+                <button class="send-btn" id="sendBtn" type="button" disabled>
+                    <span class="send-text">Отправить</span>
+                    <svg class="send-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 10L18 2L10 18L8 11L2 10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <a href="https://t.me/wecstor" target="_blank" class="support-btn">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2Z" stroke="currentColor" stroke-width="2"/>
+                    <path d="M7 10L9 12L13 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Поддержка</span>
+            </a>
+        </footer>
+
+        <div class="success-overlay" id="successOverlay">
+            <div class="success-animation">
+                <svg class="checkmark" width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle class="checkmark-circle" cx="40" cy="40" r="38" stroke="currentColor" stroke-width="4"/>
+                    <path class="checkmark-check" d="M24 40L36 52L56 28" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <p class="success-text">Отправлено!</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
