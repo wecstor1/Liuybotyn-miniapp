@@ -12,17 +12,16 @@ from aiogram.types import (
     WebAppInfo,
 )
 
-# Твой актуальный токен бота и твой ID администратора
+# Твой токен бота и ID администратора
 BOT_TOKEN = "8283504947:AAEl7JGmgtCx5q4xihUXFda7Luie3Nbcu1A"
-ADMIN_CHAT_ID = 8579101084  # Твой Telegram ID, куда будут приходить анонки
+ADMIN_CHAT_ID = 8579101084
 
-# Ссылка на твое мини-приложение (GitHub Pages или другой хостинг)
-WEB_APP_URL = "https://wecstor.github.io/lyubotin/"  # Замени на свою ссылку, если отличается
+# Ссылка на твое мини-приложение на GitHub Pages
+WEB_APP_URL = "https://wecstor.github.io/Liuybotyn-miniapp/"
 
 dp = Dispatcher()
 
 
-# Команда /start для пользователей
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
   keyboard = InlineKeyboardMarkup(
@@ -42,20 +41,16 @@ async def cmd_start(message: Message):
   )
 
 
-# Ловим данные, которые отправляет мини-приложение через tg.sendData()
 @dp.message(F.web_app_data)
 async def handle_web_app_data(message: Message):
   try:
-    # Распаковываем JSON, пришедший из сайта
     data = json.loads(message.web_app_data.data)
     text = data.get("text", "Без текста")
 
-    # Берем данные реального пользователя, который нажал кнопку
     user = message.from_user
     username_info = f"@{user.username}" if user.username else "скрыт"
     full_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
 
-    # Красиво форматируем сообщение для тебя
     admin_message = (
         f"💌 Новая анонка!\n\n"
         f"💬 Текст:\n{text}\n\n"
@@ -64,7 +59,6 @@ async def handle_web_app_data(message: Message):
         f"🆔 ID: {user.id}"
     )
 
-    # Отправляем тебе в личку
     await bot.send_message(
         chat_id=ADMIN_CHAT_ID, text=admin_message, parse_mode="Markdown"
     )

@@ -53,7 +53,6 @@ sendBtn.addEventListener('click', function() {
         return;
     }
     
-    // Формируем объект с данными
     const data = {
         text: messageText
     };
@@ -63,18 +62,15 @@ sendBtn.addEventListener('click', function() {
 
 // Function to send data back to Telegram Bot via WebApp API
 function sendData(data) {
-    // Show success animation overlay
     successOverlay.classList.add('active');
     
     try {
-        // Передаем данные боту. Telegram автоматически прикрепит к ним инфо о юзере (ID, username)
         tg.sendData(JSON.stringify(data));
         console.log('✅ Данные успешно улетели в бот через tg.sendData');
     } catch (error) {
         console.error('❌ Ошибка отправки данных через tg.sendData:', error);
     }
     
-    // Close the app after 2 seconds
     setTimeout(() => {
         try {
             tg.close();
@@ -111,21 +107,25 @@ function closeModal() {
 
 aboutBtn.addEventListener('click', function() {
     const aboutContent = 
-        <h2>💌 О проекте люботин</h2>
-        <p><strong>люботин</strong> — платформа для отправки анонимных сообщений.</p>
-        <h3>📞 Поддержка</h3>
-        <p>Написать нам: <a href="https://t.me/wecstor" style="color: var(--tg-theme-button-color);">@wecstor</a></p>
+        <div>
+            <h2>💌 О проекте люботин</h2>
+            <p><strong>люботин</strong> — платформа для отправки анонимных сообщений.</p>
+            <h3>📞 Поддержка</h3>
+            <p>Написать нам: <a href="https://t.me/wecstor" style="color: var(--tg-theme-button-color);">@wecstor</a></p>
+        </div>
     ;
     showModal(aboutContent);
 });
 
 rulesBtn.addEventListener('click', function() {
     const rulesContent = 
-        <h2>📋 Правила платформы</h2>
-        <ul>
-            <li>Без спама и рекламы</li>
-            <li>Без оскорблений и угроз</li>
-        </ul>
+        <div>
+            <h2>📋 Правила платформы</h2>
+            <ul>
+                <li>Без спама и рекламы</li>
+                <li>Без оскорблений и угроз</li>
+            </ul>
+        </div>
     ;
     showModal(rulesContent);
 });
