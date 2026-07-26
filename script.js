@@ -255,171 +255,28 @@ sendBtn.addEventListener('click', function() {
 });
 
 function sendData(data) {
-    // Update last send time and increment counter
     lastSendTime = Date.now();
     incrementMessageCount();
-    
-    // Show success animation
     successOverlay.classList.add('active');
-    
-    // Log data being sent
-    console.log('Preparing to send data:', data);
-    
-    // Send data to Telegram bot
-    try {
-        const jsonData = JSON.stringify(data);
-        console.log('Sending JSON data:', jsonData);
-        
-        // Check if Telegram WebApp is available
-        if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
-            window.Telegram.WebApp.sendData(jsonData);
-            console.log('Data sent successfully via Telegram.WebApp.sendData');
-        } else if (typeof tg !== 'undefined' && tg.sendData) {
-            tg.sendData(jsonData);
-            console.log('Data sent successfully via tg.sendData');
-        } else {
-            console.error('Telegram WebApp is not available');
-            alert('Ошибка: Telegram WebApp не доступен');
+
+    if (attachedFile) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            data.file = {
+                name: attachedFile.name,
+                type: attachedFile.type,
+                data: e.target.result
+            };
+            tg.sendData(JSON.stringify(data));
+        };
+        reader.readAsDataURL(attachedFile);
+    } else {
+        tg.sendData(JSON.stringify(data));
+    }
+
+    setTimeout(() => {
+        if (typeof tg !== 'undefined' && tg.close) {
+            tg.close();
         }
-    } catch (error) {
-        console.error('Error sending data:', error);
-        alert('Ошибка при отправке данных: ' + error.message);
-    }
-    
-    // Close the app after animation with multiple fallback attempts
-    let closeAttempts = 0;
-    const maxAttempts = 3;
-    
-    const attemptClose = () => {
-        closeAttempts++;
-        try {
-            if (typeof tg !== 'undefined' && tg.close) {
-                tg.close();
-                console.log(`Close attempt ${closeAttempts}`);
-            } else if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
-                window.Telegram.WebApp.close();
-                console.log(`Close attempt ${closeAttempts} via window.Telegram.WebApp.close`);
-            }
-        } catch (error) {
-            console.error(`Close attempt ${closeAttempts} failed:`, error);
-            if (closeAttempts < maxAttempts) {
-                setTimeout(attemptClose, 500);
-            }
-        }
-    };
-    
-    // First attempt after animation completes
-    setTimeout(attemptClose, 2000);
+    }, 2000);
 }
-
-// Handle back button (if available)
-if (tg.BackButton) {
-    tg.BackButton.show();
-    tg.BackButton.onClick(() => {
-        tg.close();
-    });
-}
-
-// Enable haptic feedback on button press
-sendBtn.addEventListener('mousedown', function() {
-    if (tg.HapticFeedback) {
-        tg.HapticFeedback.impactOccurred('medium');
-    }
-});
-
-attachmentBtn.addEventListener('mousedown', function() {
-    if (tg.HapticFeedback) {
-        tg.HapticFeedback.impactOccurred('light');
-    }
-});
-
-// Handle viewport changes
-tg.onEvent('viewportChanged', () => {
-    // Adjust layout if needed when viewport changes
-    if (!tg.isExpanded) {
-        tg.expand();
-    }
-});
-
-// Modal functions
-function showModal(content) {
-    modalBody.innerHTML = content;
-    modalOverlay.classList.add('active');
-}
-
-function closeModal() {
-    modalOverlay.classList.remove('active');
-}
-
-// About button click
-aboutBtn.addEventListener('click', function() {
-    const aboutContent = `
-        <h2>💌 О проекте люботин</h2>
-        <p><strong>люботин</strong> — это платформа для отправки анонимных сообщений, где ты можешь выразить свои мысли без страха быть узнанным.</p>
-        
-        <h3>🎯 Наша миссия</h3>
-        <p>Создать безопасное пространство для честного общения, где каждый может сказать то, что боится сказать в лицо.</p>
-        
-        <h3>✨ Возможности</h3>
-        <ul>
-            <li>📝 Отправка текстовых сообщений</li>
-            <li>📷 Прикрепление фото и видео</li>
-            <li>🔒 Полная анонимность</li>
-            <li>✅ Модерация контента</li>
-        </ul>
-        
-        <h3>📞 Поддержка</h3>
-        <p>Если у вас есть вопросы или проблемы, напишите нам: <a href="https://t.me/wecstor" style="color: var(--tg-theme-button-color);">@wecstor</a></p>
-    `;
-    showModal(aboutContent);
-});
-
-// Rules button click
-rulesBtn.addEventListener('click', function() {
-    const rulesContent = `
-        <h2>📋 Правила платформы</h2>
-        
-        <h3>⚠️ Важно знать</h3>
-        <ul>
-            <li>Публикуется только контент, одобренный администрацией</li>
-            <li>Администрация не несет ответственности за отправленный контент</li>
-            <li>Пожалуйста, отправляйте только соответствующий контент</li>
-        </ul>
-        
-        <h3>🚫 Запрещено</h3>
-        <ul>
-            <li>Спам и реклама</li>
-            <li>Оскорбления и угрозы</li>
-            <li>Непристойный контент</li>
-            <li>Раскрытие личной информации</li>
-            <li>Мошенничество</li>
-        </ul>
-        
-        <h3>✅ Рекомендуется</h3>
-        <ul>
-            <li>Быть вежливым и уважительным</li>
-            <li>Выражать мысли конструктивно</li>
-            <li>Соблюдать правила этикета</li>
-        </ul>
-        
-        <p><em>Нарушение правил может привести к блокировке аккаунта.</em></p>
-    `;
-    showModal(rulesContent);
-});
-
-// Close modal button
-modalClose.addEventListener('click', closeModal);
-
-// Close modal on overlay click
-modalOverlay.addEventListener('click', function(e) {
-    if (e.target === modalOverlay) {
-        closeModal();
-    }
-});
-
-// Close modal on Escape key
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && modalOverlay.classList.contains('active')) {
-        closeModal();
-    }
-});
