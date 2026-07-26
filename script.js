@@ -7,24 +7,9 @@ tg.expand();
 // Signal that the app is ready
 tg.ready();
 
-// Apply Telegram theme colors to CSS variables (keep black theme as default)
+// Apply Telegram theme colors to CSS variables
 function applyTheme() {
     const root = document.documentElement;
-    
-    // Keep our black theme as default, only use Telegram theme if explicitly needed
-    // Uncomment below if you want to use Telegram's theme instead
-    /*
-    if (tg.themeParams) {
-        root.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#000000');
-        root.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#ffffff');
-        root.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#888888');
-        root.style.setProperty('--tg-theme-link-color', tg.themeParams.link_color || '#6c5ce7');
-        root.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#6c5ce7');
-        root.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff');
-        root.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || '#1a1a1a');
-        root.style.setProperty('--tg-theme-header-bg-color', tg.themeParams.header_bg_color || '#000000');
-    }
-    */
 }
 
 applyTheme();
@@ -61,14 +46,12 @@ messageInput.addEventListener('input', function() {
     const currentLength = this.value.length;
     charCount.textContent = currentLength;
     
-    // Add warning class when approaching limit
     if (currentLength >= 450) {
         charCount.classList.add('warning');
     } else {
         charCount.classList.remove('warning');
     }
     
-    // Validate form
     validateForm();
 });
 
@@ -108,18 +91,17 @@ function showFilePreview(file) {
         
         const removeBtn = document.createElement('button');
         removeBtn.className = 'remove-file';
-        removeBtn.innerHTML = `
+        removeBtn.innerHTML = 
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
-        `;
+        ;
         removeBtn.addEventListener('click', removeFile);
         
         filePreview.appendChild(mediaElement);
         filePreview.appendChild(removeBtn);
         filePreview.classList.add('active');
         
-        // Update attachment button text
         attachmentBtn.querySelector('span').textContent = 'Изменить файл';
     };
     
@@ -134,77 +116,80 @@ function removeFile() {
     attachmentBtn.querySelector('span').textContent = 'Прикрепить фото/видео';
 }
 
-// Send message
+// Send message button click
 sendBtn.addEventListener('click', function() {
     const messageText = messageInput.value.trim();
     
-    if (!messageText) {
+    if (!messageText || !termsCheckbox.checked) {
         return;
     }
     
-    if (!termsCheckbox.checked) {
-        return;
-    }
-    
-    // Prepare data对象
     const data = {
         text: messageText
     };
     
-    // Add file info if attached
     if (attachedFile) {
         data.file = {
             name: attachedFile.name,
             type: attachedFile.type,
             size: attachedFile.size
         };
-        
-        // Convert file to base64 for sending
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            data.file.data = e.target.result;
-            sendData(data);
-        };
-        reader.readAsDataURL(attachedFile);
-    } else {
-        sendData(data);
     }
+    
+    sendData(data);
 });
 
+// Main function to send data directly to Telegram
 function sendData(data) {
-    // Show success animation
+    // Show success animation overlay
     successOverlay.classList.add('active');
     
-    // Send data to Telegram bot
-    try {
-        tg.sendData(JSON.stringify(data));
-        console.log('Data sent successfully');
-    } catch (error) {
-        console.error('Error sending data:', error);
+    // Your Bot Token and Admin Chat ID
+    const BOT_TOKEN = '8283504947:AAEl7JGmgtCx5q4xihUXFda7Luie3Nbcu1A';
+    const ADMIN_CHAT_ID = '8579101084';
+    
+    // Get user info if available from Telegram WebApp
+    let userInfo = 'Анонимно';
+    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+        const user = tg.initDataUnsafe.user;
+        userInfo = @${user.username || 'без_username'} (ID: ${user.id});
     }
+
+    let textMessage = 💌 Новая анонка:\n\n${data.text}\n\nОт: ${userInfo};
+    if (data.file) {
+        textMessage += \n📎 Прикреплен файл: ${data.file.name};
+    }
+
+    // Send via direct fetch to Telegram API
+    fetch(https://api.telegram.org/bot${BOT_TOKEN}/sendMessage, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            chat_id: ADMIN_CHAT_ID,
+            text: textMessage
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        console.log('Ответ от Telegram:', result);
+    })
+    .catch(error => {
+        console.error('Ошибка отправки:', error);
+    });
     
-    // Close the app after animation with multiple fallback attempts
-    let closeAttempts = 0;
-    const maxAttempts = 3;
-    
-    const attemptClose = () => {
-        closeAttempts++;
+    // Close the app after 2 seconds
+    setTimeout(() => {
         try {
             tg.close();
-            console.log(`Close attempt ${closeAttempts}`);
         } catch (error) {
-            console.error(`Close attempt ${closeAttempts} failed:`, error);
-            if (closeAttempts < maxAttempts) {
-                setTimeout(attemptClose, 500);
-            }
+            console.error('Ошибка при закрытии:', error);
         }
-    };
-    
-    // First attempt after animation completes
-    setTimeout(attemptClose, 2000);
+    }, 2000);
 }
 
-// Handle back button (if available)
+// Handle back button
 if (tg.BackButton) {
     tg.BackButton.show();
     tg.BackButton.onClick(() => {
@@ -212,7 +197,7 @@ if (tg.BackButton) {
     });
 }
 
-// Enable haptic feedback on button press
+// Haptic feedback
 sendBtn.addEventListener('mousedown', function() {
     if (tg.HapticFeedback) {
         tg.HapticFeedback.impactOccurred('medium');
@@ -222,14 +207,6 @@ sendBtn.addEventListener('mousedown', function() {
 attachmentBtn.addEventListener('mousedown', function() {
     if (tg.HapticFeedback) {
         tg.HapticFeedback.impactOccurred('light');
-    }
-});
-
-// Handle viewport changes
-tg.onEvent('viewportChanged', () => {
-    // Adjust layout if needed when viewport changes
-    if (!tg.isExpanded) {
-        tg.expand();
     }
 });
 
@@ -243,73 +220,34 @@ function closeModal() {
     modalOverlay.classList.remove('active');
 }
 
-// About button click
 aboutBtn.addEventListener('click', function() {
-    const aboutContent = `
+    const aboutContent = 
         <h2>💌 О проекте люботин</h2>
-        <p><strong>люботин</strong> — это платформа для отправки анонимных сообщений, где ты можешь выразить свои мысли без страха быть узнанным.</p>
-        
-        <h3>🎯 Наша миссия</h3>
-        <p>Создать безопасное пространство для честного общения, где каждый может сказать то, что боится сказать в лицо.</p>
-        
-        <h3>✨ Возможности</h3>
-        <ul>
-            <li>📝 Отправка текстовых сообщений</li>
-            <li>📷 Прикрепление фото и видео</li>
-            <li>🔒 Полная анонимность</li>
-            <li>✅ Модерация контента</li>
-        </ul>
-        
+        <p><strong>люботин</strong> — платформа для отправки анонимных сообщений.</p>
         <h3>📞 Поддержка</h3>
-        <p>Если у вас есть вопросы или проблемы, напишите нам: <a href="https://t.me/wecstor" style="color: var(--tg-theme-button-color);">@wecstor</a></p>
-    `;
+        <p>Написать нам: <a href="https://t.me/wecstor" style="color: var(--tg-theme-button-color);">@wecstor</a></p>
+    ;
     showModal(aboutContent);
 });
 
-// Rules button click
 rulesBtn.addEventListener('click', function() {
-    const rulesContent = `
+    const rulesContent = 
         <h2>📋 Правила платформы</h2>
-        
-        <h3>⚠️ Важно знать</h3>
         <ul>
-            <li>Публикуется только контент, одобренный администрацией</li>
-            <li>Администрация не несет ответственности за отправленный контент</li>
-            <li>Пожалуйста, отправляйте только соответствующий контент</li>
+            <li>Без спама и рекламы</li>
+            <li>Без оскорблений и угроз</li>
         </ul>
-        
-        <h3>🚫 Запрещено</h3>
-        <ul>
-            <li>Спам и реклама</li>
-            <li>Оскорбления и угрозы</li>
-            <li>Непристойный контент</li>
-            <li>Раскрытие личной информации</li>
-            <li>Мошенничество</li>
-        </ul>
-        
-        <h3>✅ Рекомендуется</h3>
-        <ul>
-            <li>Быть вежливым и уважительным</li>
-            <li>Выражать мысли конструктивно</li>
-            <li>Соблюдать правила этикета</li>
-        </ul>
-        
-        <p><em>Нарушение правил может привести к блокировке аккаунта.</em></p>
-    `;
+    ;
     showModal(rulesContent);
 });
 
-// Close modal button
 modalClose.addEventListener('click', closeModal);
-
-// Close modal on overlay click
 modalOverlay.addEventListener('click', function(e) {
     if (e.target === modalOverlay) {
         closeModal();
     }
 });
 
-// Close modal on Escape key
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && modalOverlay.classList.contains('active')) {
         closeModal();
